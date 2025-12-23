@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.ExpanseTracker"
+        parent="android:Theme.Material.Light.NoActionBar">
+
+        <!-- Primary color (DatePicker header) -->
+        <item name="android:colorPrimary">@color/purple_200</item>
+
+        <!-- Accent color (selected date, buttons) -->
+<!--        <item name="colorAccent">@color/red</item>-->
+
+        <!-- Optional -->
+        <item name="android:statusBarColor">@color/purple_200</item>
+
+    </style>
+
+</resources>
