@@ -1,12 +1,9 @@
 package com.example.expansetracker.ui.profile
 
 import android.Manifest
-import android.content.Context
 import android.net.Uri
 import android.content.pm.PackageManager
-import android.util.Log
 import android.widget.Toast
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,33 +27,26 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.example.expansetracker.data.repository.AuthRepository
 import com.example.expansetracker.ui.theme.Purple40
 import com.example.expansetracker.ui.theme.white
-import kotlinx.coroutines.launch
+import com.example.expansetracker.viewmodel.AuthViewModel
+import com.example.expansetracker.viewmodel.ProfileViewModel
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
-    navController: NavController, authRepository: AuthRepository
+    navController: NavController,
+    viewModel: ProfileViewModel = hiltViewModel(),
+    authViewModel: AuthViewModel = hiltViewModel() // <--- add this
 ) {
 
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-
-    // 🔹 Load logged-in user
-    val loggedUser = authRepository.getLoggedInUser()
-
-    var name by remember { mutableStateOf(loggedUser?.fullName ?: "") }
-    val email = loggedUser?.email ?: ""
-    val userId = loggedUser?.id ?: ""
-    var phone by remember { mutableStateOf(loggedUser?.phone ?: "") }
 
     var message by remember { mutableStateOf<String?>(null) }
-    var isLoading by remember { mutableStateOf(false) }
 
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var showImagePicker by remember { mutableStateOf(false) }
@@ -149,8 +139,8 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
+                value = viewModel.name,
+                onValueChange = viewModel::onNameChange,
                 label = { Text("Full Name") },
                 modifier = Modifier.fillMaxWidth()
             )
@@ -158,7 +148,7 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
-                value = email,
+                value = viewModel.email,
                 onValueChange = {},
                 label = { Text("Email") },
                 enabled = false,
@@ -168,8 +158,8 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
-                value = phone,
-                onValueChange = { phone = it },
+                value = viewModel.phone,
+                onValueChange = viewModel::onPhoneChange,
                 label = { Text("Phone Number") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 modifier = Modifier.fillMaxWidth()
@@ -183,14 +173,14 @@ fun ProfileScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
-                enabled = !isLoading,
+                enabled = !viewModel.isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
                 shape = RoundedCornerShape(16.dp),
 
                 onClick = {
-                    if (name.isBlank() || phone.isBlank()) {
+                    if (viewModel.name.isBlank() /*|| phone.isBlank()*/) {
                         Toast.makeText(
                             context,
                             "All fields are required",
@@ -198,38 +188,23 @@ fun ProfileScreen(
                         ).show()
                         return@Button
                     }
-                    scope.launch {
-                        try {
-                            isLoading = true
-                            val response = authRepository.profileUpdate(email, name, phone, userId)
-
-                            if (response.message == "Profile updated successfully") {
-                                Toast.makeText(context, response.message, Toast.LENGTH_SHORT)
-                                    .show()
-                            } else if (!response.error.isNullOrEmpty()) {
-                                Toast.makeText(context, response.error, Toast.LENGTH_SHORT)
-                                    .show()
-                            } else {
-                                Toast.makeText(
-                                    context,
-                                    "Profile updated failed",
-                                    Toast.LENGTH_SHORT
-                                )
-                                    .show()
-                            }
-                        } catch (e: Exception) {
+                    viewModel.updateProfile(
+                        authViewModel = authViewModel,
+                        onSuccess = {
                             Toast.makeText(
                                 context,
-                                e.message ?: "Profile updated failed",
+                                "Profile updated successfully",
                                 Toast.LENGTH_SHORT
                             ).show()
-                        } finally {
-                            isLoading = false
+                            navController.navigate("dashboard")
+                        },
+                        onError = {
+                            Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
                         }
-                    }
+                    )
                 }
             ) {
-                if (isLoading) {
+                if (viewModel.isLoading) {
                     CircularProgressIndicator(
                         strokeWidth = 2.dp,
                         modifier = Modifier.size(30.dp)
@@ -267,7 +242,7 @@ fun ProfileScreen(
                                         "${context.packageName}.provider",
                                         file
                                     )
-                                    cameraLauncher.launch(cameraImageUri)
+                                    cameraLauncher.launch(cameraImageUri!!)
                                 } else {
                                     permissionLauncher.launch(Manifest.permission.CAMERA)
                                 }
@@ -313,3 +288,4 @@ fun ProfileScreen(
         )
     }
 }
+

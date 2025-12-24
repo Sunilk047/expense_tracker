@@ -1,4 +1,4 @@
-package com.example.expansetracker.ui.expense
+package com.example.expansetracker.ui.components
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -28,7 +28,7 @@ fun MonthFilter(
     Row(
         modifier = Modifier
             .horizontalScroll(rememberScrollState())
-            .padding(vertical = 8.dp),
+            .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         months.forEach { month ->

@@ -18,25 +18,12 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 
-/** Hilt EntryPoint to access AuthRepository inside composables */
-@EntryPoint
-@InstallIn(SingletonComponent::class)
-interface AuthRepoEntryPoint {
-    fun authRepository(): AuthRepository
-}
-
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun AppNavGraph() {
 
     val navController = rememberNavController()
-    // 🔑 Get AuthRepository from Hilt
-    val context = LocalContext.current
-    val entryPoint = EntryPointAccessors.fromApplication(
-        context,
-        AuthRepoEntryPoint::class.java
-    )
-    val authRepository = entryPoint.authRepository()
+
     NavHost(
         navController = navController,
         startDestination = "splash",
@@ -66,52 +53,30 @@ fun AppNavGraph() {
         }
     ) {
 
-        composable("splash") { SplashScreen(navController, authRepository) }
-        composable("login") { LoginScreen(navController, authRepository = authRepository) }
-        composable("signup") { SignupScreen(navController, authRepository = authRepository) }
-        composable(
-            route = "otpVerify/{email}",
-            arguments = listOf(
-                navArgument("email") {
-                    type = NavType.StringType
-                }
-            )
-        ) { backStackEntry ->
-            val email = backStackEntry.arguments?.getString("email")!!
-            OtpVerifyScreen(
-                navController = navController,
-                email = email,
-                authRepository = authRepository
-            )
-        }
+        composable("splash") { SplashScreen(navController) }
+        composable("login") { LoginScreen(navController) }
+        composable("signup") { SignupScreen(navController) }
+
 
         composable("forgot") { ForgotPasswordScreen(navController) }
         composable("setNewPassword") { SetNewPasswordScreen(navController) }
-        composable("home") { ExpenseHomeScreen(navController) }
-
-        // ✅ EDIT EXPENSE
+        composable("dashboard") { ExpenseHomeScreen(navController) }
+        composable("profile") { ProfileScreen(navController) }
         composable(
-            route = "edit_expense/{expenseId}",
+            route = "add_edit?expenseId={expenseId}",
             arguments = listOf(
                 navArgument("expenseId") {
-                    type = NavType.LongType
+                    nullable = true
+                    defaultValue = null
                 }
             )
         ) { backStackEntry ->
-            val expenseId =
-                backStackEntry.arguments?.getLong("expenseId")
-
+            val expenseId = backStackEntry.arguments?.getString("expenseId")
             AddEditExpenseScreen(
                 navController = navController,
                 expenseId = expenseId
             )
         }
-        composable("add") {
-            AddEditExpenseScreen(
-                navController, expenseId = null
-            )
-        }
-        composable("profile") { ProfileScreen(navController, authRepository) }
 
     }
 }

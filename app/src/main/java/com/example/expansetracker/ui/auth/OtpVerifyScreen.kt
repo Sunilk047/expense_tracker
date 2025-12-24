@@ -100,23 +100,6 @@ fun OtpVerifyScreen(
 
                     if (error != null) return@Button
 
-                    scope.launch {
-                        val response = authRepository.verifyOtp(email, otp)
-
-                        when {
-                            response.error != null -> {
-                                error = response.error
-                            }
-
-                            response.access_token != null -> {
-                                Toast.makeText(context, "Verified successfully", Toast.LENGTH_SHORT)
-                                    .show()
-                                navController.navigate("home") {
-                                    popUpTo("signup") { inclusive = true }
-                                }
-                            }
-                        }
-                    }
                 },
                 enabled = !isLoading,
                 modifier = Modifier
@@ -140,7 +123,6 @@ fun OtpVerifyScreen(
                 onClick = {
                     scope.launch {
                         isLoading = true
-                        authRepository.resendOtp(email)
                         Toast.makeText(context, "OTP resent", Toast.LENGTH_SHORT).show()
 
                         // Restart timer

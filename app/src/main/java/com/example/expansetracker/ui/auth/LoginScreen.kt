@@ -2,9 +2,7 @@ package com.example.expansetracker.ui.auth
 
 import android.util.Patterns
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -15,20 +13,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.*
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.expansetracker.data.repository.AuthRepository
-import kotlinx.coroutines.launch
+import com.example.expansetracker.ui.components.AppButton
+import com.example.expansetracker.ui.components.AppTextField
+import com.example.expansetracker.viewmodel.AuthViewModel
 
 @Composable
-fun LoginScreen(navController: NavController, authRepository: AuthRepository) {
+fun LoginScreen(
+    navController: NavController,
+    viewModel: AuthViewModel = hiltViewModel()
+) {
 
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var isLoading by remember { mutableStateOf(false) }
+    var emailError by remember { mutableStateOf(false) }
+    var passwordError by remember { mutableStateOf(false) }
 
     Scaffold { padding ->
         Box(
@@ -62,45 +64,33 @@ fun LoginScreen(navController: NavController, authRepository: AuthRepository) {
 
                 Spacer(Modifier.height(32.dp))
 
-                OutlinedTextField(
+                /* ---------------- Email ---------------- */
+                AppTextField(
                     value = email,
-                    onValueChange = { email = it.trim() },
-                    label = { Text("Email") },
-                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    label = "Email",
+                    leadingIcon = {
+                        Icon(Icons.Default.Email, contentDescription = null)
+                    },
+                    isError = emailError,
+                    onValueChange = {
+                        email = it.trim()
+                        emailError = false
+                    }
                 )
 
-                Spacer(Modifier.height(16.dp))
-
-                OutlinedTextField(
+                /* ---------------- Password ---------------- */
+                AppTextField(
                     value = password,
-                    onValueChange = { password = it },
-                    label = { Text("Password") },
-                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
-                    trailingIcon = {
-                        IconButton(onClick = {
-                            passwordVisible = !passwordVisible
-                        }) {
-                            Icon(
-                                imageVector = if (passwordVisible)
-                                    Icons.Default.Visibility
-                                else
-                                    Icons.Default.VisibilityOff,
-                                contentDescription = null
-                            )
-                        }
+                    label = "Password",
+                    isPassword = true,
+                    leadingIcon = {
+                        Icon(Icons.Default.Lock, contentDescription = null)
                     },
-                    visualTransformation = if (passwordVisible)
-                        VisualTransformation.None
-                    else
-                        PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password
-                    ),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    isError = passwordError,
+                    onValueChange = {
+                        password = it
+                        passwordError = false
+                    }
                 )
 
                 Box(
@@ -115,81 +105,40 @@ fun LoginScreen(navController: NavController, authRepository: AuthRepository) {
                     ) { Text("Forgot password?") }
                 }
 
-//                AnimatedVisibility(visible = error != null) {
-//                    Text(
-//                        text = error.orEmpty(),
-//                        color = MaterialTheme.colorScheme.error,
-//                        style = MaterialTheme.typography.bodySmall,
-//                        modifier = Modifier.padding(top = 8.dp)
-//                    )
-//                }
-
                 Spacer(Modifier.height(24.dp))
 
-                Button(
+                AppButton(
+                    text = if (viewModel.isLoading) "Please wait..." else "Login",
+                    enabled = !viewModel.isLoading,
                     onClick = {
-                        error = when {
-                            email.isBlank() -> "Email is required"
-                            !Patterns.EMAIL_ADDRESS.matcher(email)
-                                .matches() -> "Enter a valid email"
+                        emailError = email.isBlank() ||
+                                !Patterns.EMAIL_ADDRESS.matcher(email).matches()
 
-                            password.isBlank() -> "Password is required"
-                            password.length < 6 -> "Password must be at least 6 characters"
-                            else -> null
+                        passwordError = password.isBlank() || password.length < 6
+
+                        if (emailError || passwordError) {
+                            Toast.makeText(
+                                context,
+                                "Please enter valid credentials",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            return@AppButton
                         }
 
-                        if (error != null) {
-                            Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
-                            return@Button
-                        }
-                        scope.launch {
-                            try {
-                                isLoading = true
-                                // Use AuthRepository instead of SupabaseApi
-                                val response = authRepository.login(email, password)
-
-                                if (response.message == "Login successful") {
-                                    Toast.makeText(context, response.message, Toast.LENGTH_SHORT)
-                                        .show()
-                                    navController.navigate("home") {
-                                        popUpTo("login") { inclusive = true }
-                                    }
-                                } else if (!response.error.isNullOrEmpty()) {
-                                    Toast.makeText(context, response.error, Toast.LENGTH_SHORT)
-                                        .show()
-                                } else {
-                                    Toast.makeText(context, "Login failed", Toast.LENGTH_SHORT)
-                                        .show()
+                        viewModel.login(
+                            email,
+                            password,
+                            onSuccess = {
+                                navController.navigate("dashboard") {
+                                    popUpTo("login") { inclusive = true }
                                 }
-                            } catch (e: Exception) {
-                                Toast.makeText(
-                                    context,
-                                    e.message ?: "Login failed",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            } finally {
-                                isLoading = false
+                            },
+                            onError = {
+                                Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
                             }
-                        }
-                    },
-                    enabled = !isLoading,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(30.dp)
                         )
-                    } else {
-                        Text("Login")
-//                        Spacer(Modifier.width(8.dp))
-//                        Icon(Icons.Default.ArrowForward, contentDescription = null)
                     }
-                }
-
+                )
 
                 Spacer(Modifier.height(16.dp))
 

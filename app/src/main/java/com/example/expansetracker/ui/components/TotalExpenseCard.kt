@@ -1,4 +1,4 @@
-package com.example.expansetracker.ui.expense
+package com.example.expansetracker.ui.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*

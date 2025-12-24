@@ -1,13 +1,8 @@
 package com.example.expansetracker.ui.auth
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import android.util.Patterns
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.LockReset
@@ -15,15 +10,23 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.expansetracker.ui.components.AppButton
+import com.example.expansetracker.ui.components.AppTextField
+import com.example.expansetracker.viewmodel.AuthViewModel
 
 @Composable
-fun ForgotPasswordScreen(navController: NavController) {
+fun ForgotPasswordScreen(
+    navController: NavController,
+    viewModel: AuthViewModel = hiltViewModel()
+) {
+    val context = LocalContext.current
 
     var email by remember { mutableStateOf("") }
-    var message by remember { mutableStateOf<String?>(null) }
+    var emailError by remember { mutableStateOf(false) }
 
     Scaffold { padding ->
         Box(
@@ -55,7 +58,7 @@ fun ForgotPasswordScreen(navController: NavController) {
                 )
 
                 Text(
-                    text = "Enter your registered email to receive a otp",
+                    text = "Enter your registered email to receive reset link",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp),
@@ -63,49 +66,54 @@ fun ForgotPasswordScreen(navController: NavController) {
 
                 Spacer(Modifier.height(32.dp))
 
-                // Email input
-                OutlinedTextField(
+                AppTextField(
                     value = email,
-                    onValueChange = { email = it },
-                    label = { Text("Email") },
-                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    label = "Email",
+                    leadingIcon = {
+                        Icon(Icons.Default.Email, contentDescription = null)
+                    },
+                    isError = emailError,
+                    onValueChange = {
+                        email = it.trim()
+                        emailError = false
+                    }
                 )
-
-                // Animated message display
-                AnimatedVisibility(
-                    visible = message != null,
-                    enter = fadeIn() + slideInVertically { it / 2 },
-                    exit = fadeOut() + slideOutVertically { it / 2 }
-                ) {
-                    Text(
-                        text = message.orEmpty(),
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
 
                 Spacer(Modifier.height(24.dp))
 
                 // Send reset link button
-                Button(
+                AppButton(
+                    text = if (viewModel.isLoading) "Please wait..." else "Send Reset Link",
+                    enabled = !viewModel.isLoading,
                     onClick = {
-                        if (email.isBlank()) {
-                            "Please enter your email"
-                        } else {
-                            navController.navigate("otpVerify")
+                        emailError = email.isBlank() ||
+                                !Patterns.EMAIL_ADDRESS.matcher(email).matches()
+
+                        if (emailError) {
+                            Toast.makeText(
+                                context,
+                                "Please enter a valid email",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            return@AppButton
                         }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Text("Submit")
-                }
+
+                        viewModel.resetPassword(
+                            email = email,
+                            onSuccess = {
+                                Toast.makeText(
+                                    context,
+                                    "Password reset email sent",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                                navController.popBackStack()
+                            },
+                            onError = {
+                                Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    }
+                )
 
                 Spacer(Modifier.height(16.dp))
 

@@ -1,3 +1,5 @@
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -5,38 +7,41 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import kotlinx.coroutines.delay
 import com.example.expansetracker.R
-import com.example.expansetracker.data.local.UserSessionManager
-import com.example.expansetracker.data.repository.AuthRepository
 import com.example.expansetracker.ui.theme.white
+import com.example.expansetracker.viewmodel.AuthViewModel
 
 @Composable
-fun SplashScreen(navController: NavController, authRepository: AuthRepository) {
-    // Show splash for a short duration
-    var isChecked by remember { mutableStateOf(false) }
-    // Animation (optional)
+fun SplashScreen(
+    navController: NavController,
+    viewModel: AuthViewModel = hiltViewModel()
+) {
+    /* ---------------- Animation State ---------------- */
     var startAnimation by remember { mutableStateOf(false) }
-    val alphaAnim = androidx.compose.animation.core.animateFloatAsState(
+    val alphaAnim by animateFloatAsState(
         targetValue = if (startAnimation) 1f else 0f,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 1000)
+        animationSpec = tween(durationMillis = 1000),
+        label = "SplashFade"
     )
 
-    // Trigger animation and navigation
-    LaunchedEffect(true) {
+    /* ---------------- Navigation Logic ---------------- */
+    LaunchedEffect(Unit) {
         startAnimation = true
-        delay(2000) // splash duration
-        if (authRepository.isLoggedIn()) {
-            navController.navigate("home") {
+        delay(1500)
+
+        if (viewModel.isLoggedIn()) {
+            navController.navigate("dashboard") {
                 popUpTo("splash") { inclusive = true }
             }
         } else {
@@ -44,7 +49,6 @@ fun SplashScreen(navController: NavController, authRepository: AuthRepository) {
                 popUpTo("splash") { inclusive = true }
             }
         }
-        isChecked = true
     }
 
 
@@ -59,15 +63,15 @@ fun SplashScreen(navController: NavController, authRepository: AuthRepository) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            if (!isChecked) {
-                CircularProgressIndicator(color = white)
-            }
+            CircularProgressIndicator(color = white)
+            Spacer(modifier = Modifier.height(24.dp))
+
             Image(
                 painter = painterResource(id = R.drawable.logo), // your logo here
                 contentDescription = "App Logo",
                 modifier = Modifier
                     .size(150.dp)
-                    .graphicsLayer { alpha = alphaAnim.value } // optional fade-in animation
+                    .graphicsLayer { alpha = alphaAnim } // optional fade-in animation
             )
 
             Spacer(modifier = Modifier.height(16.dp)) // space between logo and text
@@ -77,7 +81,7 @@ fun SplashScreen(navController: NavController, authRepository: AuthRepository) {
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onPrimary,
-                modifier = Modifier.graphicsLayer { alpha = alphaAnim.value } // fade-in with logo
+                modifier = Modifier.graphicsLayer { alpha = alphaAnim } // fade-in with logo
             )
         }
     }

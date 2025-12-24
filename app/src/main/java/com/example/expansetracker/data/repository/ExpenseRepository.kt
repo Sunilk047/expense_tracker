@@ -1,82 +1,60 @@
 package com.example.expansetracker.data.repository
 
-import com.example.expansetracker.data.local.UserSessionManager
-import com.example.expansetracker.data.remote.SupabaseApi
-import com.example.expansetracker.data.remote.SupabaseApi.ApiResponse
+import com.example.expansetracker.data.model.ExpenseModel
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import javax.inject.Inject
 
 class ExpenseRepository @Inject constructor(
-    private val sessionManager: UserSessionManager
+    private val firestore: FirebaseFirestore,
+    private val auth: FirebaseAuth
 ) {
 
-    /**
-     * Add new expense
-     */
-    suspend fun addExpense(
-        title: String,
-        description: String?,
-        amount: Double,
-        date: String
-    ): ApiResponse {
+    private fun expensesRef() =
+        firestore.collection("expenses")
+            .document(auth.currentUser!!.uid)
+            .collection("items")
 
-        val userId = sessionManager.getUser()?.id
-            ?: return ApiResponse(error = "User not logged in")
+    /* ---------------- REALTIME TODOS ---------------- */
 
-        return SupabaseApi.addExpense(
-            title = title,
-            description = description,
-            amount = amount,
-            date = date,
-            userId = userId
-        )
+    fun getExpenses(): Flow<List<ExpenseModel>> = callbackFlow {
+        val listener = expensesRef()
+            .orderBy("createdAt")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                val expenses = snapshot?.documents?.mapNotNull {
+                    it.toObject(ExpenseModel::class.java)?.copy(id = it.id)
+                } ?: emptyList()
+
+                trySend(expenses)
+            }
+
+        awaitClose { listener.remove() }
     }
 
-    /**
-     * Update existing expense
-     */
-    suspend fun updateExpense(
-        expenseId: Long,
-        title: String,
-        description: String?,
-        amount: Double,
-        date: String
-    ): ApiResponse {
+    /* ---------------- ADD ---------------- */
 
-        val userId = sessionManager.getUser()?.id
-            ?: return ApiResponse(error = "User not logged in")
-
-        return SupabaseApi.updateExpense(
-            expenseId = expenseId,
-            title = title,
-            description = description,
-            amount = amount,
-            date = date,
-            userId = userId
-        )
+    suspend fun addExpense(expense: ExpenseModel) {
+        expensesRef().add(expense)
     }
 
-    /**
-     * Get all expenses for logged-in user
-     * (to be used with expense_list Edge Function)
-     */
-    suspend fun getExpenses(month: Int?, year: Int?): SupabaseApi.ExpenseListResponse {
-        return SupabaseApi.getExpenses(month, year)
+    /* ---------------- UPDATE ---------------- */
+
+    suspend fun updateExpense(expense: ExpenseModel) {
+        expensesRef().document(expense.id).set(expense)
     }
 
+    /* ---------------- DELETE ---------------- */
 
-
-    /**
-     * Delete expense
-     * (to be used with expense_delete Edge Function)
-     */
-    suspend fun deleteExpense(expenseId: Long): ApiResponse {
-
-        val userId = sessionManager.getUser()?.id
-            ?: return ApiResponse(error = "User not logged in")
-
-        return SupabaseApi.deleteExpense(
-            expenseId = expenseId,
-            userId = userId
-        )
+    suspend fun deleteExpense(expenseId: String) {
+        expensesRef().document(expenseId).delete()
     }
 }
+

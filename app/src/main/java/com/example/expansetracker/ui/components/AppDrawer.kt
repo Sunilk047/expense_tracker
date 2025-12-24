@@ -15,42 +15,23 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.expansetracker.data.repository.AuthRepository
-import dagger.hilt.android.EntryPointAccessors
-import dagger.hilt.EntryPoint
-import dagger.hilt.InstallIn
-import dagger.hilt.components.SingletonComponent
-import kotlinx.coroutines.launch
 import android.widget.Toast
-
-/* 🔑 Hilt EntryPoint to access AuthRepository */
-@EntryPoint
-@InstallIn(SingletonComponent::class)
-interface AuthRepoEntryPoint {
-    fun authRepository(): AuthRepository
-}
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.expansetracker.ui.theme.Purple40
+import com.example.expansetracker.ui.theme.white
+import com.example.expansetracker.viewmodel.AuthViewModel
 
 @Composable
 fun AppDrawer(
-    navController: NavController
+    navController: NavController,
+    viewModel: AuthViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-
-    // 🔹 Get AuthRepository from Hilt
-    val entryPoint = EntryPointAccessors.fromApplication(
-        context.applicationContext,
-        AuthRepoEntryPoint::class.java
-    )
-    val authRepository = entryPoint.authRepository()
-
-    // 🔹 Load saved user
-    val user = authRepository.getLoggedInUser()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(white)
     ) {
 
         /* ================= HEADER ================= */
@@ -58,31 +39,41 @@ fun AppDrawer(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.primaryContainer)
+                .background(Purple40)
                 .padding(24.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
 
+//                if (viewModel.userPhoto != null) {
+//                    AsyncImage(
+//                        model = viewModel.userPhoto,
+//                        contentDescription = null,
+//                        modifier = Modifier
+//                            .size(72.dp)
+//                            .clip(CircleShape)
+//                    )
+//                } else {
                 Box(
                     modifier = Modifier
                         .size(72.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary)
+                        .background(white)
                 )
+//                }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = user?.fullName ?: "User",
+                    text = viewModel.userName,
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = white
                 )
 
                 Text(
-                    text = user?.email ?: "",
+                    text = viewModel.userEmail ?: "",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                    color = white
                 )
             }
         }
@@ -92,13 +83,11 @@ fun AppDrawer(
         Column(modifier = Modifier.padding(vertical = 8.dp)) {
 
             NavigationDrawerItem(
-                label = { Text("Expense List") },
+                label = { Text("Dashboard") },
                 icon = { Icon(Icons.Default.List, null) },
                 selected = false,
                 onClick = {
-                    navController.navigate("home") {
-                        popUpTo("home") { inclusive = true }
-                    }
+                    navController.navigate("dashboard")
                 }
             )
 
@@ -122,17 +111,15 @@ fun AppDrawer(
                 icon = { Icon(Icons.Default.ExitToApp, null) },
                 selected = false,
                 onClick = {
-                    scope.launch {
-                        authRepository.logout()
-                        Toast.makeText(
-                            context,
-                            "Logged out successfully",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                    viewModel.logout()
+                    Toast.makeText(
+                        context,
+                        "Logged out successfully",
+                        Toast.LENGTH_SHORT
+                    ).show()
 
-                        navController.navigate("login") {
-                            popUpTo(0) { inclusive = true }
-                        }
+                    navController.navigate("login") {
+                        popUpTo(0) { inclusive = true }
                     }
                 }
             )

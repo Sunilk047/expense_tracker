@@ -1,4 +1,4 @@
-package com.example.expansetracker.ui.expense
+package com.example.expansetracker.ui.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,12 +11,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.expansetracker.data.local.Expense
+import com.example.expansetracker.data.model.ExpenseModel
 import com.example.expansetracker.ui.theme.Purple40
 
 @Composable
 fun ExpenseItemCard(
-    expense: Expense,
+    expense: ExpenseModel,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -67,7 +67,7 @@ fun ExpenseItemCard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             /* ---------- AMOUNT ---------- */
             Text(

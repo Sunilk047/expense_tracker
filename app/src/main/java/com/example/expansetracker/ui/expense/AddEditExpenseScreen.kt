@@ -14,15 +14,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.ui.draw.shadow
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.expansetracker.ui.components.AppButton
+import com.example.expansetracker.ui.components.AppTextField
 import com.example.expansetracker.ui.theme.Purple40
-import com.example.expansetracker.ui.theme.Purple80
 import com.example.expansetracker.ui.theme.white
 import com.example.expansetracker.viewmodel.ExpenseViewModel
-import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -30,25 +28,36 @@ import java.util.*
 @Composable
 fun AddEditExpenseScreen(
     navController: NavController,
-    viewModel: ExpenseViewModel = hiltViewModel(),
-    expenseId: Long? = null
+    expenseId: String? = null,
+    viewModel: ExpenseViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
+    val expenses by viewModel.expenses.collectAsState()
+
+    val isEditMode = expenseId != null
+    val existingExpense = expenses.firstOrNull { it.id == expenseId }
 
     var title by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
+    var selectedDate by remember { mutableStateOf(System.currentTimeMillis()) }
     var error by remember { mutableStateOf<String?>(null) }
+    var titleError by remember { mutableStateOf(false) }
+    var amountError by remember { mutableStateOf(false) }
 
-    val calendar = Calendar.getInstance()
-    var selectedDate by remember { mutableStateOf(calendar.timeInMillis) }
-
-    val isEditMode = expenseId != null
-    val isLoading by viewModel.isLoading.collectAsState()
-
-    val apiDateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-    val uiDateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+    val calendar = remember { Calendar.getInstance() }
+    val uiDateFormat = remember {
+        SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+    }
+    /* 🔑 PREFILL WHEN EDIT MODE */
+    LaunchedEffect(existingExpense) {
+        existingExpense?.let {
+            title = it.title
+            description = it.description
+            amount = it.amount.toString()
+            selectedDate = it.date
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -87,35 +96,45 @@ fun AddEditExpenseScreen(
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
 
-                    OutlinedTextField(
+                    /* -------- Title -------- */
+                    AppTextField(
                         value = title,
-                        onValueChange = { title = it },
-                        label = { Text("Expense Title") },
-                        leadingIcon = { Icon(Icons.Filled.List, null) },
-                        modifier = Modifier.fillMaxWidth()
+                        label = "Expense Title",
+                        leadingIcon = { Icon(Icons.Default.List, null) },
+                        isError = titleError,
+                        onValueChange = {
+                            title = it
+                            titleError = false
+                        }
                     )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(8.dp))
 
-                    OutlinedTextField(
+//                    OutlinedTextField(
+//                        value = amount,
+//                        onValueChange = { amount = it },
+//                        label = { Text("Amount") },
+//                        leadingIcon = { Icon(Icons.Filled.Money, null) },
+//                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+//                        modifier = Modifier.fillMaxWidth()
+//                    )
+                    /* -------- Amount -------- */
+                    AppTextField(
                         value = amount,
-                        onValueChange = { amount = it },
-                        label = { Text("Amount") },
+                        label = "Amount",
                         leadingIcon = { Icon(Icons.Filled.Money, null) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth()
+                        onValueChange = { amount = it }
                     )
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(8.dp))
 
-                    OutlinedTextField(
+                    /* -------- Description -------- */
+                    AppTextField(
                         value = description,
-                        onValueChange = { description = it },
-                        label = { Text("Description") },
-                        leadingIcon = { Icon(Icons.Filled.Description, null) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp)
+                        label = "Description",
+                        leadingIcon = { Icon(Icons.Default.Description, null) },
+                        onValueChange = { description = it }
                     )
 
                     Spacer(Modifier.height(16.dp))
@@ -145,66 +164,52 @@ fun AddEditExpenseScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    error?.let {
-                        Spacer(Modifier.height(8.dp))
-                        Text(it, color = MaterialTheme.colorScheme.error)
-                    }
-
                     Spacer(Modifier.height(24.dp))
 
-                    Button(
+                    /* -------- Save / Update -------- */
+                    AppButton(
+                        text = if (isEditMode) "Update Expense" else "Save Expense",
                         onClick = {
-                            error = when {
-                                title.isBlank() || amount.isBlank() ->
-                                    "Title and amount are required"
-                                amount.toDoubleOrNull() == null ->
-                                    "Enter a valid amount"
-                                else -> null
+                            titleError = title.isBlank()
+                            amountError = amount.isBlank()
+                            if (titleError) {
+                                Toast.makeText(
+                                    context,
+                                    "Title required",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                return@AppButton
+                            }
+                            if (amountError) {
+                                Toast.makeText(
+                                    context,
+                                    "Amount required",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                return@AppButton
                             }
 
-                            if (error != null) return@Button
-
-                            val apiDate = apiDateFormat.format(Date(selectedDate))
-                            val amt = amount.toDouble()
-
-                            if (isEditMode) {
+                            if (isEditMode && existingExpense != null) {
                                 viewModel.updateExpense(
-                                    id = expenseId!!,
-                                    title = title,
-                                    description = description,
-                                    amount = amt,
-                                    date = apiDate
-                                ) { success, msg ->
-                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                                    if (success) navController.popBackStack()
-                                }
+                                    existingExpense.copy(
+                                        title = title,
+                                        description = description,
+                                        date = selectedDate,
+                                        amount = amount.toDouble()
+                                    )
+                                )
                             } else {
                                 viewModel.addExpense(
                                     title = title,
-                                    description = description,
-                                    amount = amt,
-                                    date = apiDate
-                                ) { success, msg ->
-                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                                    if (success) navController.popBackStack()
-                                }
+                                    desc = description,
+                                    date = selectedDate,
+                                    amount = amount.toDouble()
+                                )
                             }
-                        },
-                        enabled = !isLoading,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(
-                                strokeWidth = 2.dp,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        } else {
-                            Text(if (isEditMode) "Update Expense" else "Save Expense")
+
+                            navController.popBackStack()
                         }
-                    }
+                    )
                 }
             }
         }
