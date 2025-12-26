@@ -13,19 +13,29 @@ class ExpenseRepository @Inject constructor(
     private val auth: FirebaseAuth
 ) {
 
-    private fun expensesRef() =
+    private fun expensesRef(uid: String) =
         firestore.collection("expenses")
-            .document(auth.currentUser!!.uid)
+            .document(uid)
             .collection("items")
 
     /* ---------------- REALTIME TODOS ---------------- */
 
     fun getExpenses(): Flow<List<ExpenseModel>> = callbackFlow {
-        val listener = expensesRef()
+        val uid = auth.currentUser?.uid
+        if (uid == null) {
+            trySend(emptyList())
+            close()
+            return@callbackFlow
+        }
+        val listener = expensesRef(uid)
             .orderBy("createdAt")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    // ✅ IGNORE PERMISSION DENIED (logout case)
+                    if (error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                        trySend(emptyList())
+                        return@addSnapshotListener
+                    }
                     return@addSnapshotListener
                 }
 
@@ -42,19 +52,24 @@ class ExpenseRepository @Inject constructor(
     /* ---------------- ADD ---------------- */
 
     suspend fun addExpense(expense: ExpenseModel) {
-        expensesRef().add(expense)
+        auth.currentUser?.uid?.let { uid ->
+            expensesRef(uid).add(expense)
+        }
     }
 
     /* ---------------- UPDATE ---------------- */
 
     suspend fun updateExpense(expense: ExpenseModel) {
-        expensesRef().document(expense.id).set(expense)
+        auth.currentUser?.uid?.let { uid ->
+            expensesRef(uid).document(expense.id).set(expense)
+        }
     }
 
     /* ---------------- DELETE ---------------- */
 
     suspend fun deleteExpense(expenseId: String) {
-        expensesRef().document(expenseId).delete()
+        auth.currentUser?.uid?.let { uid ->
+            expensesRef(uid).document(expenseId).delete()
+        }
     }
 }
-

@@ -11,11 +11,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.expansetracker.ui.biometric.BiometricAuthHelper
 import androidx.navigation.NavController
 import kotlinx.coroutines.delay
 import com.example.expansetracker.R
@@ -27,6 +30,9 @@ fun SplashScreen(
     navController: NavController,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
+
+    val context = LocalContext.current
+    val activity = context as? FragmentActivity ?: return
     /* ---------------- Animation State ---------------- */
     var startAnimation by remember { mutableStateOf(false) }
     val alphaAnim by animateFloatAsState(
@@ -41,9 +47,21 @@ fun SplashScreen(
         delay(1500)
 
         if (viewModel.isLoggedIn()) {
-            navController.navigate("dashboard") {
-                popUpTo("splash") { inclusive = true }
-            }
+//            navController.navigate("dashboard") {
+//                popUpTo("splash") { inclusive = true }
+//            }
+            BiometricAuthHelper.authenticate(
+                activity = activity,
+                onSuccess = {
+                    navController.navigate("dashboard") {
+                        popUpTo("splash") { inclusive = true }
+                    }
+                },
+                onError = {
+                    // ❗ If user cancels → close app or stay locked
+                    activity.finish()
+                }
+            )
         } else {
             navController.navigate("login") {
                 popUpTo("splash") { inclusive = true }

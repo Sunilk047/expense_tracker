@@ -1,5 +1,6 @@
 package com.example.expansetracker.data.repository
 
+import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.userProfileChangeRequest
 import javax.inject.Inject
@@ -56,6 +57,9 @@ class AuthRepository @Inject constructor(
 
     /* ---------------- SESSION ---------------- */
     fun isLoggedIn(): Boolean {
+        Log.d("Firestore", "Current UID: ${firebaseAuth.currentUser?.uid}")
+        Log.d("Firestore", "Querying path: todos/${firebaseAuth.currentUser?.uid}/items")
+
         return firebaseAuth.currentUser != null
     }
 

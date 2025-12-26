@@ -20,11 +20,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.expansetracker.ui.theme.Purple40
 import com.example.expansetracker.ui.theme.white
 import com.example.expansetracker.viewmodel.AuthViewModel
+import com.example.expansetracker.viewmodel.ExpenseViewModel
 
 @Composable
 fun AppDrawer(
     navController: NavController,
-    viewModel: AuthViewModel = hiltViewModel()
+    viewModel: AuthViewModel = hiltViewModel(),
+    expenseViewModel: ExpenseViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
 
@@ -111,6 +113,7 @@ fun AppDrawer(
                 icon = { Icon(Icons.Default.ExitToApp, null) },
                 selected = false,
                 onClick = {
+                    expenseViewModel.clearOnLogout()
                     viewModel.logout()
                     Toast.makeText(
                         context,
@@ -119,7 +122,10 @@ fun AppDrawer(
                     ).show()
 
                     navController.navigate("login") {
-                        popUpTo(0) { inclusive = true }
+                        popUpTo(navController.graph.startDestinationId) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
                     }
                 }
             )

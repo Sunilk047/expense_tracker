@@ -7,6 +7,7 @@ import com.example.expansetracker.data.repository.ExpenseRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancelChildren
 import java.util.Calendar
 import javax.inject.Inject
 
@@ -56,5 +57,9 @@ class ExpenseViewModel @Inject constructor(
         viewModelScope.launch {
             repository.deleteExpense(expenseId)
         }
+    }
+    fun clearOnLogout() {
+        // Cancels flow collection
+        viewModelScope.coroutineContext.cancelChildren()
     }
 }
